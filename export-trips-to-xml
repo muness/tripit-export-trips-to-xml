@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+
+require 'tripit'
+require 'nokogiri'
+require 'yaml'
+
+creds = YAML.load_file('creds.yml')
+consumer_key, consumer_secret=[creds['consumer_key'], creds['consumer_secret']]
+
+api_url = 'https://api.tripit.com/v1/'
+
+oauth_credential = TripIt::OAuthCredential.new(consumer_key, consumer_secret)
+t = TripIt::API.new(oauth_credential, api_url)
+
+request_token = t.get_request_token
+
+puts "\n\nUsing your brower, log in to Trip then go to:\n https://www.tripit.com/oauth/authorize?oauth_token=#{request_token.token}&oauth_callback=http://localhost:8080/ \nAuthorize this app to access your data. When you get to the localhost / page not found link, come back to this console and press enter."
+gets.chomp
+
+oauth_credential = TripIt::OAuthCredential.new(consumer_key, consumer_secret, request_token.token, request_token.token_secret)
+t = TripIt::API.new(oauth_credential, api_url)
+
+access_token = t.get_access_token
+
+authorized_token        = access_token.token
+authorized_token_secret = access_token.token_secret
+
+oauth_credential = TripIt::OAuthCredential.new(
+    consumer_key, consumer_secret,
+    authorized_token, authorized_token_secret)
+t = TripIt::API.new(oauth_credential, api_url)
+
+past_trips = t.list.trip({'past' => 'true', 'include_objects' => 'false', 'traveler' => 'true', "page_size" => "30"})
+
+puts "There are #{past_trips['page_size']} pages of data. Retrieving them all."
+
+pages = past_trips["max_page"].to_i
+
+trips = Nokogiri::XML::Builder.new do |xml_out|
+  xml_out.Trips do
+    for page in (1..pages)
+      puts "Retrieving page #{page} of #{pages}."
+      past_trips = t.list.trip({'past' => 'true', 'include_objects' => 'false', 'traveler' => 'true', "page_size" => "30", "page_num" => page})
+      node = Nokogiri::XML(past_trips.to_xml.to_s)
+      xml_out << node.xpath("//Trip").to_xml
+    end
+  end
+end
+
+puts "Writing trip data to trips.xml"
+File.open("trips.xml", 'w') {|f| f.write(trips.to_xml.to_s)}
