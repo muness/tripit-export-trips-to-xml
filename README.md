@@ -5,6 +5,7 @@ A quick and dirty script that exports your TripIt trip information to an XML fil
 # Installation and usage
 
 Follow these steps:
+
 1. Install Git,Ruby, Ruby Gems, and Bundler if you haven't already.
 1. Go to https://www.tripit.com/developer and create a new application. You will need the API Key and API Secret later
 1. Then clone this git repo: `git clone git@github.com:muness/tripit-export-trips-to-xml.git`
